@@ -39,7 +39,11 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ onUpdate }) 
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
+    const validDate = date instanceof Date ? date : new Date(date);
+    if (isNaN(validDate.getTime())) {
+      return 'Invalid Date';
+    }
+    return validDate.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

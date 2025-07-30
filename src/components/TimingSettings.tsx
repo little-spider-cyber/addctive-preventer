@@ -94,7 +94,7 @@ export const TimingSettings: React.FC = () => {
         </p>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-500">Immediate</span>
+            <span className="text-xs text-neutral-500">0s</span>
             <span className="text-xs font-medium text-primary-600">{formatTime(timingConfig.initialDelay)}</span>
             <span className="text-xs text-neutral-500">5 min</span>
           </div>

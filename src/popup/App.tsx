@@ -65,7 +65,7 @@ export default function App() {
   ];
 
   return (
-    <div className="w-96 h-[32rem] bg-white shadow-xl flex flex-col">
+    <div className="w-full h-full bg-white shadow-xl flex flex-col min-w-96 min-h-[32rem]">
       {/* Header */}
       <div className="px-6 py-5 border-b border-neutral-200/50 bg-gradient-to-r from-primary-50 to-success-50 flex-shrink-0">
         <div className="text-center">
