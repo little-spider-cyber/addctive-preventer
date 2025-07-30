@@ -14,44 +14,69 @@ class ContentScriptManager {
 
   constructor() {
     this.currentDomain = window.location.hostname;
-    // Small delay to ensure page is fully loaded
-    setTimeout(() => this.initialize(), 100);
+    console.log('[Mindful Browsing] ContentScriptManager constructor called for:', this.currentDomain);
+    
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('[Mindful Browsing] DOM loaded, initializing...');
+        setTimeout(() => this.initialize(), 100);
+      });
+    } else {
+      console.log('[Mindful Browsing] DOM already ready, initializing...');
+      setTimeout(() => this.initialize(), 100);
+    }
   }
 
   private async initialize() {
     try {
+      console.log('[Mindful Browsing] Initializing content script...');
+      
       // Initialize storage
       await storage.initialize();
+      console.log('[Mindful Browsing] Storage initialized');
       
       // Check if current domain is blacklisted
       const isBlacklisted = await storage.isBlacklisted(this.currentDomain);
       const blacklist = await storage.getBlacklist();
+      const timingConfig = await storage.getTimingConfig();
       
       console.log('[Mindful Browsing] Domain:', this.currentDomain);
       console.log('[Mindful Browsing] Blacklist:', blacklist);
       console.log('[Mindful Browsing] Is blacklisted:', isBlacklisted);
+      console.log('[Mindful Browsing] Timing config:', timingConfig);
       
       if (isBlacklisted) {
         console.log('[Mindful Browsing] Starting monitoring for', this.currentDomain);
         this.startMonitoring();
+      } else {
+        console.log('[Mindful Browsing] Domain not blacklisted, no monitoring started');
       }
     } catch (error) {
-      console.error('Failed to initialize content script:', error);
+      console.error('[Mindful Browsing] Failed to initialize content script:', error);
     }
   }
 
   private async startMonitoring() {
     try {
       const timingConfig = await storage.getTimingConfig();
-      console.log('[Mindful Browsing] Timing config:', timingConfig);
+      console.log('[Mindful Browsing] Starting monitoring with config:', timingConfig);
+      
+      // Clear any existing timers
+      this.clearTimers();
+      this.interventionCount = 0;
       
       // Set initial delay timer (0 means immediate)
       if (timingConfig.initialDelay === 0) {
         console.log('[Mindful Browsing] Showing immediate intervention');
-        this.showIntervention();
+        // Use setTimeout with 0 to ensure it runs after current call stack
+        setTimeout(() => {
+          this.showIntervention();
+        }, 0);
       } else {
         console.log('[Mindful Browsing] Setting timer for', timingConfig.initialDelay, 'seconds');
         const initialTimer = window.setTimeout(() => {
+          console.log('[Mindful Browsing] Initial timer triggered');
           this.showIntervention();
         }, timingConfig.initialDelay * 1000);
         
@@ -61,16 +86,22 @@ class ContentScriptManager {
       // Set interval timers
       timingConfig.intervals.forEach((_, index) => {
         if (index < timingConfig.maxInterventions - 1) {
+          const delay = timingConfig.initialDelay + this.sumIntervals(timingConfig.intervals.slice(0, index + 1));
+          console.log('[Mindful Browsing] Setting follow-up timer #', (index + 2), 'for', delay, 'seconds');
+          
           const timer = window.setTimeout(() => {
+            console.log('[Mindful Browsing] Follow-up timer #', (index + 2), 'triggered');
             this.showIntervention();
-          }, (timingConfig.initialDelay + this.sumIntervals(timingConfig.intervals.slice(0, index + 1))) * 1000);
+          }, delay * 1000);
           
           this.timers.push(timer);
         }
       });
       
+      console.log('[Mindful Browsing] Set', this.timers.length, 'timers');
+      
     } catch (error) {
-      console.error('Failed to start monitoring:', error);
+      console.error('[Mindful Browsing] Failed to start monitoring:', error);
     }
   }
 
@@ -89,37 +120,67 @@ class ContentScriptManager {
       
       this.interventionCount++;
       
-      if (!this.modalRoot) {
-        this.modalRoot = document.createElement('div');
-        this.modalRoot.id = 'addiction-preventer-modal';
-        this.modalRoot.style.position = 'fixed';
-        this.modalRoot.style.top = '0';
-        this.modalRoot.style.left = '0';
-        this.modalRoot.style.zIndex = '999999';
-        document.body.appendChild(this.modalRoot);
-        console.log('[Mindful Browsing] Created modal container');
+      // Clean up any existing modal first
+      this.hideIntervention();
+      
+      console.log('[Mindful Browsing] Creating modal container...');
+      this.modalRoot = document.createElement('div');
+      this.modalRoot.id = 'addiction-preventer-modal';
+      this.modalRoot.style.position = 'fixed';
+      this.modalRoot.style.top = '0';
+      this.modalRoot.style.left = '0';
+      this.modalRoot.style.width = '100vw';
+      this.modalRoot.style.height = '100vh';
+      this.modalRoot.style.zIndex = '999999';
+      this.modalRoot.style.pointerEvents = 'auto';
+      
+      // Ensure we can append to body
+      if (!document.body) {
+        console.error('[Mindful Browsing] Document body not available');
+        return;
       }
+      
+      document.body.appendChild(this.modalRoot);
+      console.log('[Mindful Browsing] Modal container appended to body');
 
-      if (!this.reactRoot) {
-        this.reactRoot = ReactDOM.createRoot(this.modalRoot);
-        console.log('[Mindful Browsing] Created React root');
-      }
+      console.log('[Mindful Browsing] Creating React root...');
+      this.reactRoot = ReactDOM.createRoot(this.modalRoot);
+      console.log('[Mindful Browsing] React root created');
 
       const sessionDuration = Math.floor((Date.now() - this.sessionStart) / 1000);
       console.log('[Mindful Browsing] Session duration:', sessionDuration, 'seconds');
 
+      const modalProps = {
+        domain: this.currentDomain,
+        sessionDuration: sessionDuration,
+        onReflect: this.handleReflection.bind(this),
+        onClose: this.hideIntervention.bind(this)
+      };
+      
+      console.log('[Mindful Browsing] Modal props:', modalProps);
+      console.log('[Mindful Browsing] Rendering React element...');
+
       this.reactRoot.render(
-        React.createElement(InterventionModal, {
-          domain: this.currentDomain,
-          sessionDuration: sessionDuration,
-          onReflect: this.handleReflection.bind(this),
-          onClose: this.hideIntervention.bind(this)
-        })
+        React.createElement(InterventionModal, modalProps)
       );
       
-      console.log('[Mindful Browsing] Modal rendered');
+      console.log('[Mindful Browsing] Modal rendered successfully');
+      
+      // Double check that the modal is in the DOM
+      setTimeout(() => {
+        const modalElement = document.getElementById('addiction-preventer-modal');
+        console.log('[Mindful Browsing] Modal element in DOM:', modalElement);
+        if (modalElement) {
+          console.log('[Mindful Browsing] Modal element children:', modalElement.children.length);
+          console.log('[Mindful Browsing] Modal element HTML:', modalElement.innerHTML.substring(0, 200));
+        }
+      }, 100);
+      
     } catch (error) {
       console.error('[Mindful Browsing] Error showing intervention:', error);
+      if (error instanceof Error) {
+        console.error('[Mindful Browsing] Error stack:', error.stack);
+      }
     }
   }
 
@@ -136,11 +197,31 @@ class ContentScriptManager {
   }
 
   private hideIntervention() {
-    if (this.reactRoot && this.modalRoot) {
-      this.reactRoot.unmount();
-      this.reactRoot = null;
-      this.modalRoot.remove();
-      this.modalRoot = null;
+    try {
+      console.log('[Mindful Browsing] Hiding intervention...');
+      
+      if (this.reactRoot) {
+        console.log('[Mindful Browsing] Unmounting React root');
+        this.reactRoot.unmount();
+        this.reactRoot = null;
+      }
+      
+      if (this.modalRoot) {
+        console.log('[Mindful Browsing] Removing modal root from DOM');
+        this.modalRoot.remove();
+        this.modalRoot = null;
+      }
+      
+      // Also remove any existing modal by ID as fallback
+      const existingModal = document.getElementById('addiction-preventer-modal');
+      if (existingModal) {
+        console.log('[Mindful Browsing] Removing existing modal by ID');
+        existingModal.remove();
+      }
+      
+      console.log('[Mindful Browsing] Intervention hidden');
+    } catch (error) {
+      console.error('[Mindful Browsing] Error hiding intervention:', error);
     }
   }
 
