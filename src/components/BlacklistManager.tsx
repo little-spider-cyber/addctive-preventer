@@ -24,7 +24,16 @@ export const BlacklistManager: React.FC = () => {
   const addDomain = async () => {
     if (!newDomain.trim()) return;
     
-    const domain = newDomain.trim().toLowerCase().replace(/^https?:\/\//, '');
+    const domain = newDomain.trim().toLowerCase()
+      .replace(/^https?:\/\//, '')  // Remove protocol
+      .replace(/^www\./, '')        // Remove www prefix
+      .replace(/\/.*$/, '');        // Remove path and trailing slash
+    
+    // Validate that we have a non-empty domain
+    if (!domain) {
+      console.error('Invalid domain after processing:', newDomain);
+      return;
+    }
     
     try {
       await storage.addToBlacklist(domain);
@@ -84,7 +93,7 @@ export const BlacklistManager: React.FC = () => {
               value={newDomain}
               onChange={(e) => setNewDomain(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Enter domain (e.g., reddit.com)"
+              placeholder="Enter URL or domain (e.g., reddit.com or https://reddit.com)"
               className="input text-sm"
             />
           </div>
@@ -103,7 +112,7 @@ export const BlacklistManager: React.FC = () => {
           <svg className="w-4 h-4 mr-1.5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Enter just the domain name without http:// or www.
+          Enter full URL or just domain name. Protocols and paths will be automatically removed.
         </p>
       </div>
 

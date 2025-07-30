@@ -46,6 +46,26 @@ class StorageManager {
     }
   }
 
+  // Clean up existing blacklist entries to ensure consistent format
+  async cleanupBlacklist(): Promise<void> {
+    const blacklist = await this.getBlacklist();
+    const cleanedList = blacklist
+      .map(domain => domain
+        .replace(/^https?:\/\//, '')  // Remove protocol
+        .replace(/^www\./, '')        // Remove www prefix
+        .replace(/\/.*$/, '')         // Remove path and trailing slash
+        .toLowerCase()
+      )
+      .filter(domain => domain.length > 0)  // Remove empty entries
+      .filter((domain, index, arr) => arr.indexOf(domain) === index); // Remove duplicates
+    
+    if (cleanedList.length !== blacklist.length || 
+        !cleanedList.every((domain, index) => domain === blacklist[index])) {
+      console.log('[Mindful Browsing] Cleaning up blacklist entries');
+      await this.setBlacklist(cleanedList);
+    }
+  }
+
   async removeFromBlacklist(domain: string): Promise<void> {
     const blacklist = await this.getBlacklist();
     await this.setBlacklist(blacklist.filter((d) => d !== domain));
@@ -347,6 +367,9 @@ class StorageManager {
       const blacklist = await this.get("blacklist");
       if (!blacklist) {
         await this.setBlacklist(DEFAULT_BLACKLIST);
+      } else {
+        // Clean up existing blacklist entries
+        await this.cleanupBlacklist();
       }
 
       const prompts = await this.get("customPrompts");
