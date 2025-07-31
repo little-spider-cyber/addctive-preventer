@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { InterventionModal } from '../components/InterventionModal'
 import { storage } from '../shared/storage'
 import { ReflectionEntry } from '../shared/types'
+import tailwindStyles from '../index.css?inline'
 
 class ContentScriptManager {
   private sessionStart: number = Date.now();
@@ -134,6 +135,26 @@ class ContentScriptManager {
       this.modalRoot.style.zIndex = '999999';
       this.modalRoot.style.pointerEvents = 'auto';
       
+      // Create shadow DOM to isolate styles
+      const shadowRoot = this.modalRoot.attachShadow({ mode: 'closed' });
+      
+      // Inject Tailwind CSS using constructable stylesheets (modern approach)
+      if ('adoptedStyleSheets' in shadowRoot && (shadowRoot as any).adoptedStyleSheets) {
+        // Use constructable stylesheets (modern browsers)
+        const styleSheet = new CSSStyleSheet();
+        styleSheet.replaceSync(tailwindStyles);
+        (shadowRoot as any).adoptedStyleSheets = [styleSheet];
+      } else {
+        // Fallback for older browsers
+        const style = document.createElement('style');
+        style.textContent = tailwindStyles;
+        shadowRoot.appendChild(style);
+      }
+      
+      // Create a container inside shadow DOM
+      const shadowContainer = document.createElement('div');
+      shadowRoot.appendChild(shadowContainer);
+      
       // Ensure we can append to body
       if (!document.body) {
         console.error('[Mindful Browsing] Document body not available');
@@ -144,7 +165,7 @@ class ContentScriptManager {
       console.log('[Mindful Browsing] Modal container appended to body');
 
       console.log('[Mindful Browsing] Creating React root...');
-      this.reactRoot = ReactDOM.createRoot(this.modalRoot);
+      this.reactRoot = ReactDOM.createRoot(shadowContainer);
       console.log('[Mindful Browsing] React root created');
 
       const sessionDuration = Math.floor((Date.now() - this.sessionStart) / 1000);
