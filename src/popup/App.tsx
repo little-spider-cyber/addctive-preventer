@@ -103,10 +103,10 @@ export default function App() {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            className={`flex-1 px-2 py-3 text-sm font-medium transition-all duration-200 flex flex-col items-center space-y-1 min-w-0 ${
+            className={`flex-1 px-2 py-3 text-sm font-medium transition-all duration-200 flex flex-col items-center space-y-1 min-w-0 border-b-2 ${
               activeTab === tab.id
-                ? 'text-primary-600 bg-white border-b-2 border-primary-600 shadow-sm'
-                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100/50'
+                ? 'text-primary-600 bg-white border-primary-600 shadow-sm'
+                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100/50 border-transparent'
             }`}
             onClick={() => setActiveTab(tab.id)}
           >
@@ -121,17 +121,17 @@ export default function App() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 relative overflow-hidden">
-        <div className={`absolute inset-0 ${activeTab === 'blacklist' ? 'block' : 'hidden'}`}>
+      <div className="flex-1 relative overflow-hidden min-h-0">
+        <div className={`absolute inset-0 overflow-auto ${activeTab === 'blacklist' ? 'block' : 'hidden'}`}>
           <BlacklistManager />
         </div>
-        <div className={`absolute inset-0 ${activeTab === 'prompts' ? 'block' : 'hidden'}`}>
+        <div className={`absolute inset-0 overflow-auto ${activeTab === 'prompts' ? 'block' : 'hidden'}`}>
           <PromptEditor />
         </div>
-        <div className={`absolute inset-0 ${activeTab === 'timing' ? 'block' : 'hidden'}`}>
+        <div className={`absolute inset-0 overflow-auto ${activeTab === 'timing' ? 'block' : 'hidden'}`}>
           <TimingSettings />
         </div>
-        <div className={`absolute inset-0 ${activeTab === 'metrics' ? 'block' : 'hidden'}`}>
+        <div className={`absolute inset-0 overflow-auto ${activeTab === 'metrics' ? 'block' : 'hidden'}`}>
           <MetricsDashboard onUpdate={loadMetrics} />
         </div>
       </div>
